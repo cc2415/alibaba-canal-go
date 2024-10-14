@@ -1,9 +1,17 @@
 # alibaba-canal-go
-阿里巴巴canal
-proto要使用这个
-"github.com/golang/protobuf/proto"
+阿里巴巴canal proto要使用这个 "github.com/golang/protobuf/proto"
 
 # 启动alibaba-canal服务
+要求数据库开启了binlog
+
+bindlog使用的是ROW模式
+
+创建一个账号，给这个账号对应库的权限
+
+[可参考这个](https://www.codeccc.cn/index.php/2024/03/18/%e9%98%bf%e9%87%8c%e7%9a%84-binlog-%e7%9a%84%e5%a2%9e%e9%87%8f%e8%ae%a2%e9%98%85%e5%92%8c%e6%b6%88%e8%b4%b9%e7%bb%84%e4%bb%b6/)
+
+---
+
 Dockerfile
 ```
 FROM canal/canal-server
