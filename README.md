@@ -3,7 +3,6 @@
 proto要使用这个
 "github.com/golang/protobuf/proto"
 
-
 # 启动alibaba-canal服务
 Dockerfile
 ```
@@ -64,5 +63,6 @@ AppConfig.EsAddress = []string{"http://127.0.0.1:9200/", "http://127.0.0.1:9201/
 ```
 
 # 增加新的表同步到es
-模仿table目录下的chatMsg
-复制一份修改表名和struct就ok了
+复制table目录下的chatMsg
+
+修改表名和struct的内容数据就ok了
