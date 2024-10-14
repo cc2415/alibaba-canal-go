@@ -2,6 +2,7 @@ package es
 
 import (
 	"bytes"
+	"cc-go-canal/config"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -20,7 +21,7 @@ var Client *elasticsearch.Client
 func init() {
 	fmt.Println("初始化esClient")
 	cfg := elasticsearch.Config{
-		Addresses: []string{"http://127.0.0.1:9200/", "http://127.0.0.1:9201/", "http://127.0.0.1:9202/"},
+		Addresses: config.AppConfig.EsAddress,
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost:   10,
 			ResponseHeaderTimeout: 5 * time.Second,
