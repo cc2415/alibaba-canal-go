@@ -83,4 +83,6 @@ alibabaCanal:
 ## 增加新的表同步到es
 复制table目录下的chatMsg
 
-修改表名和struct的内容数据就ok了
+修改表名和struct的内容数据
+
+把新加的数据加入到syncEs/needTable.go 的 NeedInEsTableName
