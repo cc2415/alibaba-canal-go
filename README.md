@@ -1,7 +1,9 @@
 # alibaba-canal-go
 阿里巴巴canal proto要使用这个 "github.com/golang/protobuf/proto"
 
-# 启动alibaba-canal服务
+
+# 启动
+## 启动alibaba-canal服务
 要求数据库开启了binlog
 
 bindlog使用的是ROW模式
@@ -59,18 +61,26 @@ services:
 
 
 ```
-# 修改配置
-``` golang
-AppConfig.EsAddress = []string{"http://127.0.0.1:9200/", "http://127.0.0.1:9201/", "http://127.0.0.1:9202/"}
-	AppConfig.AlibabaCanal.Address = "192.168.199.165" //alibaba-canal的服务的ip地址
-	AppConfig.AlibabaCanal.Port = 11111 //是alibaba-canal 的端口
-	AppConfig.AlibabaCanal.Username = "alibaba_canal" //是要被同步的数据库的账号
-	AppConfig.AlibabaCanal.Password = "abcd" //是要被同步的数据库的密码
-	AppConfig.AlibabaCanal.Destination = "destination" //是alibaba-canal的服务的名字，自定义的
-	AppConfig.AlibabaCanal.Database = "database"
+## 配置env
+复制 .env.template.yaml 到 .env
+## 修改env配置
+``` yaml
+# es的地址
+esAddress: 
+  - "http://localhost:9200"
+  - "http://localhost:9201"
+  - "http://localhost:9202"
+
+alibabaCanal:
+  address: 192.168.199.165 #alibaba-canal的服务的ip地址
+  port: 11111 #alibaba-canal服务 的端口
+  username: alibaba_canal #是要被同步的数据库的账号
+  password: abcd #是要被同步的数据库的密码
+  destination: destination #是alibaba-canal的服务的名字，自定义的
+  database: databaseName #要被同步的数据库
 ```
 
-# 增加新的表同步到es
+## 增加新的表同步到es
 复制table目录下的chatMsg
 
 修改表名和struct的内容数据就ok了

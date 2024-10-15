@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	//config.InitConfig()
 	// 192.168.199.17 替换成你的canal server的地址
 	// example 替换成-e canal.destinations=example 你自己定义的名字
 	connector := client.NewSimpleCanalConnector(config.AppConfig.AlibabaCanal.Address, config.AppConfig.AlibabaCanal.Port,
