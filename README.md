@@ -79,8 +79,10 @@ alibabaCanal:
   destination: destination #是alibaba-canal的服务的名字，自定义的
   database: databaseName #要被同步的数据库
 ```
+## 可设置表是否需要初始化
+增加 syncEs/needTable.go的NeedInitDataTableName
 
-## 增加新的表同步到es
+## 设置表数据更新是否需要同步到es
 复制table目录下的chatMsg
 
 修改表名和struct的内容数据

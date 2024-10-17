@@ -2,8 +2,8 @@ package main
 
 import (
 	"cc-go-canal/config"
+	"cc-go-canal/es"
 	"cc-go-canal/syncEs"
-	"cc-go-canal/table"
 	"fmt"
 	"log"
 	"os"
@@ -15,9 +15,7 @@ import (
 )
 
 func main() {
-	//config.InitConfig()
-	// 192.168.199.17 替换成你的canal server的地址
-	// example 替换成-e canal.destinations=example 你自己定义的名字
+	config.InitConfig("./")
 	connector := client.NewSimpleCanalConnector(config.AppConfig.AlibabaCanal.Address, config.AppConfig.AlibabaCanal.Port,
 		config.AppConfig.AlibabaCanal.Username, config.AppConfig.AlibabaCanal.Password, config.AppConfig.AlibabaCanal.Destination, 60000, 60*60*1000)
 	err := connector.Connect()
@@ -26,26 +24,13 @@ func main() {
 		log.Println(err)
 		os.Exit(1)
 	}
-	// https://github.com/alibaba/canal/wiki/AdminGuide
-	//mysql 数据解析关注的表，Perl正则表达式.
-	//
-	//多个正则之间以逗号(,)分隔，转义符需要双斜杠(\\)
-	//
-	//常见例子：
-	//
-	//  1.  所有表：.*   or  .*\\..*
-	//	2.  canal schema下所有表： canal\\..*
-	//	3.  canal下的以canal打头的表：canal\\.canal.*
-	//	4.  canal schema下的一张表：canal\\.test1
-	//  5.  多个规则组合使用：canal\\..*,mysql.test1,mysql.test2 (逗号分隔)
-
-	//err = connector.Subscribe(".*\\..*")
 	err = connector.Subscribe(config.AppConfig.AlibabaCanal.Database + "\\..*") //数据库\\所有表
-	//err = connector.Subscribe("canal\\\\..")
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
 	}
+	// 初始化表数据
+	initTableData()
 
 	fmt.Println(connector.Connected)
 	fmt.Println(connector.ClientIdentity)
@@ -69,10 +54,17 @@ func main() {
 	}
 }
 
+// 初始化表数据
+func initTableData() {
+	go func() {
+		syncEs.InitTableData()
+	}()
+}
+
 func printEntry(entrys []pbe.Entry) {
 
 	for _, entry := range entrys {
-		if entry.GetEntryType() == pbe.EntryType_TRANSACTIONBEGIN || entry.GetEntryType() == pbe.EntryType_TRANSACTIONEND {
+		if entry.GetEntryType() == pbe.EntryType_TRANSACTIONBEGIN || entry.GetEntryType() == pbe.EntryType_TRANSACTIONEND || entry.GetHeader().GetSchemaName() != config.AppConfig.DatabaseName {
 			continue
 		}
 		rowChange := new(pbe.RowChange)
@@ -85,9 +77,10 @@ func printEntry(entrys []pbe.Entry) {
 			fmt.Println("")
 			fmt.Println("")
 			fmt.Println(fmt.Sprintf(" %s库.%s 表有变化", header.GetSchemaName(), header.GetTableName())) //GetSchemaName 数据库
-			_, exit := syncEs.NeedInEsTableName[header.GetTableName()]
-			if exit {
-				syncEs.CreateChatMsgIndex(header.GetSchemaName()) // 创建索引
+			if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit && !es.CheckIndexExit(syncEs.GetIndexName(header.GetTableName())) {
+				syncEs.CreateIndexAndAlias(header.GetTableName()) // 创建索引
+				// 初始化数据到es里
+
 			}
 			for _, rowData := range rowChange.GetRowDatas() {
 				if eventType == pbe.EventType_DELETE {
@@ -99,25 +92,23 @@ func printEntry(entrys []pbe.Entry) {
 					rowDataRe := make(map[string]string) // 创建一个 map 用于存储结果
 					printColumn(rowData.GetAfterColumns(), rowDataRe)
 					if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit {
-						switch header.GetTableName() {
-						case table.TableChatMag:
-							syncEs.CreateOrUpdateChatMsgDocument(header.GetTableName(), rowDataRe)
-							break
-						}
+						syncEs.CreateTableDocument(header.GetTableName(), rowDataRe)
 					}
 					fmt.Println(rowDataRe)
-					//table.CreateOrUpdateChatMsgDocument()
 					fmt.Println("************ 数据新增显示结束 ************")
-				} else {
+				} else { // 更新
 					fmt.Println("……………………………… 数据更新显示开始 ………………………………")
 					// 创建一个切片
-
+					id := ""
 					beforeData := []map[string]interface{}{}
 					for _, col := range rowData.GetBeforeColumns() {
 						beforeData = append(beforeData, map[string]interface{}{
 							"column": col.GetName(),
 							"value":  col.GetValue(),
 						})
+						if col.GetName() == "id" {
+							id = col.GetValue()
+						}
 					}
 					afterData := []map[string]interface{}{}
 					for _, col := range rowData.GetAfterColumns() {
@@ -134,9 +125,10 @@ func printEntry(entrys []pbe.Entry) {
 					}
 					fmt.Println("")
 
-					rowDataRe := make(map[string]string)
+					rowDataRe := make(map[string]interface{})
 					fmt.Println("新数据")
 					updateData := []map[string]interface{}{}
+					esUpdData := map[string]interface{}{}
 					for i, datum := range afterData {
 						if datum["updated"] == true {
 							//变化的值
@@ -145,6 +137,7 @@ func printEntry(entrys []pbe.Entry) {
 								"oldValue": beforeData[i]["value"],
 								"newValue": datum["value"],
 							})
+							esUpdData[datum["column"].(string)] = datum["value"]
 						}
 						rowDataRe[datum["column"].(string)] = datum["value"].(string)
 						fmt.Print(fmt.Sprintf(" %s:%s ", datum["column"], datum["value"]))
@@ -154,12 +147,8 @@ func printEntry(entrys []pbe.Entry) {
 					for _, datum := range updateData {
 						fmt.Println(fmt.Sprintf("字段:%s 从:%s 改为:%s", datum["column"], datum["oldValue"], datum["newValue"]))
 					}
-					if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit {
-						switch header.GetTableName() {
-						case table.TableChatMag:
-							syncEs.CreateOrUpdateChatMsgDocument(header.GetTableName(), rowDataRe)
-							break
-						}
+					if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit && id != "" {
+						syncEs.UpdateTableDocument(header.GetTableName(), id, esUpdData)
 					}
 
 					fmt.Println("……………………………… 数据更新显示结束 ………………………………")

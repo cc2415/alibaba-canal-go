@@ -8,6 +8,8 @@ import (
 )
 
 type AlibabaCanal struct {
+	DbHost      string `yaml:"dbHost"`
+	DbPort      string `yaml:"dbPort"`
 	Address     string `yaml:"address"`
 	Port        int    `yaml:"port"`
 	Username    string `yaml:"username"`
@@ -16,21 +18,28 @@ type AlibabaCanal struct {
 
 	Database string `yaml:"database"`
 }
+type IndexCondition struct {
+	Day     string `yaml:"day"`
+	DocsNum string `yaml:"docsNum"`
+	MaxSize string `yaml:"maxSize"`
+}
 type Config struct {
-	EsAddress    []string     `yaml:"esAddress"`
-	AlibabaCanal AlibabaCanal `yaml:"alibabaCanal"`
-	//Ab           string       `yaml:"ab"`
+	DatabaseName   string         `yaml:"databaseName"`
+	EsAddress      []string       `yaml:"esAddress"`
+	AlibabaCanal   AlibabaCanal   `yaml:"alibabaCanal"`
+	IndexCondition IndexCondition `yaml:"indexCondition"`
 }
 
 var AppConfig Config
 
-func Ab() {
-
-}
-func init() {
-	abs, _ := filepath.Abs("./")
-	fmt.Println(abs)
-	file, _ := ioutil.ReadFile(abs + "/.env.yaml")
-	yaml.Unmarshal(file, &AppConfig)
+func InitConfig(RootPath string) {
+	abs, _ := filepath.Abs(RootPath)
+	envYamlFilePath := abs + "/.env.yaml"
+	fmt.Println(envYamlFilePath)
+	file, _ := ioutil.ReadFile(envYamlFilePath)
+	err := yaml.Unmarshal(file, &AppConfig)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Println(AppConfig)
 }
