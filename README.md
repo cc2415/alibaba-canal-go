@@ -1,6 +1,35 @@
 # alibaba-canal-go
 阿里巴巴canal proto要使用这个 "github.com/golang/protobuf/proto"
 
+# 功能
+可设置数据库表是否需要初始化
+自动跟踪表数据的增删改查同步es
+设置副本数量（0就默认为es节点-1个）
+
+# 配置
+```yaml
+esAddress: # es地址
+  - "http://localhost:9200"
+  - "http://localhost:9201"
+  - "http://localhost:9202"
+
+alibabaCanal: # alibaba-cnal服务地址
+  address: 192.168.199.165 #alibaba-canal的服务的ip地址
+  port: 11111 #alibaba-canal服务 的端口
+  username: alibaba_canal #是要被同步的数据库的账号
+  password: abcd #是要被同步的数据库的密码
+  destination: destination #是alibaba-canal的服务的名字，自定义的
+  database: databaseName #要被同步的数据库
+
+databaseName: databaseName # 数据库名
+
+esRolloverCondition: # es索引配置
+  maxAge: 1d
+  maxDocs: 10
+  maxSize: 5gb
+esNodeNumber: 3 #节点数量
+esIndexShareReplicasNum: 2 # 副本数量
+```
 
 # 启动
 ## 启动alibaba-canal服务
@@ -62,29 +91,27 @@ services:
 
 ```
 ## 配置env
-复制 .env.template.yaml 到 .env
+复制 .env.template.yaml 到 .env 根据备注修改
 ## 修改env配置
-``` yaml
-# es的地址
-esAddress: 
-  - "http://localhost:9200"
-  - "http://localhost:9201"
-  - "http://localhost:9202"
 
-alibabaCanal:
-  address: 192.168.199.165 #alibaba-canal的服务的ip地址
-  port: 11111 #alibaba-canal服务 的端口
-  username: alibaba_canal #是要被同步的数据库的账号
-  password: abcd #是要被同步的数据库的密码
-  destination: destination #是alibaba-canal的服务的名字，自定义的
-  database: databaseName #要被同步的数据库
+## 设置表数据更新是否需要初始化和同步到es
+复制table目录下的chatMsgModel
+```go
+package table
+
+type ChatMsgModel struct { //自定义
+	BaseModel
+}
+
+var chatMsgModel = ChatMsgModel{
+	BaseModel{
+		TableName:    "fa_chat_msg", //表名
+		NeedInitData: true, //是否需要初始化表数据到es
+		NeedInEs:     true, // 是否追踪增删改查到es
+	}}
+
+func init() { // 这个一定要有，不要动
+	ModelList = append(ModelList, chatMsgModel)
+}
+
 ```
-## 可设置表是否需要初始化
-增加 syncEs/needTable.go的NeedInitDataTableName
-
-## 设置表数据更新是否需要同步到es
-复制table目录下的chatMsg
-
-修改表名和struct的内容数据
-
-把新加的数据加入到syncEs/needTable.go 的 NeedInEsTableName

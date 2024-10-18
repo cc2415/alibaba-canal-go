@@ -4,6 +4,7 @@ import (
 	"cc-go-canal/config"
 	"cc-go-canal/es"
 	"cc-go-canal/syncEs"
+	"cc-go-canal/table"
 	"fmt"
 	"log"
 	"os"
@@ -56,9 +57,10 @@ func main() {
 
 // 初始化表数据
 func initTableData() {
-	go func() {
-		syncEs.InitTableData()
-	}()
+	log.Println("初始化表数据到es中..............")
+	syncEs.InitTableData()
+	log.Println("初始化表数据到es成功..............")
+
 }
 
 func printEntry(entrys []pbe.Entry) {
@@ -77,26 +79,30 @@ func printEntry(entrys []pbe.Entry) {
 			fmt.Println("")
 			fmt.Println("")
 			fmt.Println(fmt.Sprintf(" %s库.%s 表有变化", header.GetSchemaName(), header.GetTableName())) //GetSchemaName 数据库
-			if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit && !es.CheckIndexExit(syncEs.GetIndexName(header.GetTableName())) {
+			if table.CheckTableNeedInEs(header.GetTableName()) && !es.CheckIndexExit(syncEs.GetIndexName(header.GetTableName())) {
+				//if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit && !es.CheckIndexExit(syncEs.GetIndexName(header.GetTableName())) {
 				syncEs.CreateIndexAndAlias(header.GetTableName()) // 创建索引
 				// 初始化数据到es里
 
 			}
 			for _, rowData := range rowChange.GetRowDatas() {
-				if eventType == pbe.EventType_DELETE {
+				switch eventType {
+				case pbe.EventType_DELETE:
 					fmt.Println("……………………………… 数据删除显示开始 ………………………………")
 					printColumn(rowData.GetBeforeColumns(), nil)
 					fmt.Println("************ 数据删除显示结束 ************")
-				} else if eventType == pbe.EventType_INSERT {
+					break
+				case pbe.EventType_INSERT:
 					fmt.Println("……………………………… 数据新增显示开始 ………………………………")
-					rowDataRe := make(map[string]string) // 创建一个 map 用于存储结果
+					rowDataRe := make(map[string]interface{}) // 创建一个 map 用于存储结果
 					printColumn(rowData.GetAfterColumns(), rowDataRe)
-					if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit {
+					if table.CheckTableNeedInEs(header.GetTableName()) {
 						syncEs.CreateTableDocument(header.GetTableName(), rowDataRe)
 					}
 					fmt.Println(rowDataRe)
 					fmt.Println("************ 数据新增显示结束 ************")
-				} else { // 更新
+					break
+				case pbe.EventType_UPDATE:
 					fmt.Println("……………………………… 数据更新显示开始 ………………………………")
 					// 创建一个切片
 					id := ""
@@ -147,18 +153,19 @@ func printEntry(entrys []pbe.Entry) {
 					for _, datum := range updateData {
 						fmt.Println(fmt.Sprintf("字段:%s 从:%s 改为:%s", datum["column"], datum["oldValue"], datum["newValue"]))
 					}
-					if _, exit := syncEs.NeedInEsTableName[header.GetTableName()]; exit && id != "" {
+					if table.CheckTableNeedInEs(header.GetTableName()) && id != "" {
 						syncEs.UpdateTableDocument(header.GetTableName(), id, esUpdData)
 					}
 
 					fmt.Println("……………………………… 数据更新显示结束 ………………………………")
+					break
 				}
 			}
 		}
 	}
 }
 
-func printColumn(columns []*pbe.Column, rowData map[string]string) {
+func printColumn(columns []*pbe.Column, rowData map[string]interface{}) {
 	for _, col := range columns {
 		fmt.Print(fmt.Sprintf(" %s:%s ", col.GetName(), col.GetValue()))
 		rowData[col.GetName()] = col.GetValue()

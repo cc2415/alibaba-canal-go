@@ -131,3 +131,41 @@ func BulkCreate(indexName string, data []map[string]interface{}) (*esapi.Respons
 		Body: bytes.NewReader(body),
 	}.Do(context.Background(), Client)
 }
+
+// 设置索引的副本数和刷新间隔
+func SetIndexSettings(indexName string, replicas int, refreshInterval string) {
+	settings := map[string]interface{}{
+		"index": map[string]interface{}{
+			"number_of_replicas": replicas,
+			//"refresh_interval":   refreshInterval,
+		},
+	}
+
+	body, _ := json.Marshal(settings)
+
+	req, _ := esapi.IndicesPutSettingsRequest{
+		Index: []string{indexName},
+		Body:  bytes.NewReader(body),
+	}.Do(context.Background(), Client)
+
+	defer req.Body.Close()
+	fmt.Printf("Index settings updated: replicas=%d, refresh_interval=%s\n", replicas, refreshInterval)
+}
+
+// rollov
+func Rollover(aliasName string, maxAge string, maxDocs int, maxSize string) {
+	rolloverConditions := map[string]interface{}{
+		"aliases": map[string]interface{}{
+			aliasName: map[string]interface{}{"is_write_index": true},
+		},
+		"conditions": map[string]interface{}{
+			"max_age":  maxAge,
+			"max_docs": maxDocs,
+			"max_size": maxSize,
+		},
+	}
+	body, _ := json.Marshal(rolloverConditions)
+
+	esapi.IndicesRolloverRequest{Body: bytes.NewReader(body), Alias: aliasName}.Do(context.Background(), Client)
+
+}

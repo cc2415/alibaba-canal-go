@@ -3,6 +3,7 @@ package syncEs
 import (
 	"cc-go-canal/config"
 	"cc-go-canal/es"
+	"cc-go-canal/table"
 	"encoding/json"
 	"fmt"
 	"gorm.io/driver/mysql"
@@ -12,7 +13,7 @@ import (
 
 // 获取索引名
 func GetIndexName(tableName string) string {
-	return config.AppConfig.DatabaseName + "." + tableName + "-1"
+	return config.AppConfig.DatabaseName + "." + tableName + "-000001"
 }
 
 // 获取别名
@@ -32,8 +33,8 @@ func CreateIndexAndAlias(tableName string) {
 	fmt.Println(fmt.Sprintf("es初始化索引成功 %s  别名:%d", indexName, GetAliasName(tableName), e.StatusCode))
 }
 
-func CreateTableDocument(tableName string, msg map[string]string) {
-	es.CreateDocument(GetAliasName(tableName), msg)
+func CreateTableDocument(tableName string, data map[string]interface{}) {
+	es.CreateDocument(GetAliasName(tableName), data)
 }
 
 // 根据id 更新数据
@@ -48,8 +49,6 @@ func UpdateTableDocument(tableName string, id string, data map[string]interface{
 	es.UpdateDocumentByQuery(GetAliasName(tableName), query, data)
 }
 
-//todo bulk批量写入 关闭副本 写入前副本数设置为 0； 写入前关闭 refresh_interval 设置为-1，禁用刷新机制； 写入后恢复副本数和刷新间隔；
-
 // 初始化表的数据
 func InitTableData() {
 	// 数据库连接配置
@@ -62,9 +61,11 @@ func InitTableData() {
 		log.Fatalf("Error opening database: %s\n", err)
 	}
 
-	for _, itemTableName := range NeedInitDataTableName {
-		if !es.CheckIndexExit(GetAliasName(itemTableName)) {
+	for _, itemModel := range table.ModelList {
+		itemTableName := itemModel.GetTableName()
+		if itemModel.GetNeedInitData() && !es.CheckIndexExit(GetAliasName(itemTableName)) {
 			CreateIndexAndAlias(itemTableName)
+			es.SetIndexSettings(GetAliasName(itemTableName), 0, "-1")
 			var results []map[string]interface{}
 			db.Raw(fmt.Sprintf("select * from %s", itemTableName)).FindInBatches(&results, 1000, func(tx *gorm.DB, batch int) error {
 				_, err := es.BulkCreate(GetAliasName(itemTableName), results)
@@ -75,6 +76,7 @@ func InitTableData() {
 				}
 				return nil
 			})
+			es.SetIndexSettings(GetAliasName(itemTableName), config.AppConfig.EsIndexShareReplicasNum, "-1")
 		}
 
 	}
