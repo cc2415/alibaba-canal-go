@@ -24,7 +24,39 @@ func GetAliasName(tableName string) string {
 // 创建索引
 func CreateIndexAndAlias(tableName string) {
 	indexName := GetIndexName(tableName)
-	err, e := es.CreateIndex(indexName) // 数据库名_表名
+	// todo 分词器
+	// 定义索引设置和映射
+	//mapping := map[string]interface{}{
+	//	"settings": map[string]interface{}{
+	//		"analysis": map[string]interface{}{
+	//			"analyzer": map[string]interface{}{
+	//				"ik_max_word_analyzer": map[string]interface{}{
+	//					"type":      "custom",
+	//					"tokenizer": "ik_max_word",
+	//				},
+	//				"ik_smart_analyzer": map[string]interface{}{
+	//					"type":      "custom",
+	//					"tokenizer": "ik_smart",
+	//				},
+	//			},
+	//		},
+	//	},
+	//	"mappings": map[string]interface{}{
+	//		"dynamic_templates": []map[string]interface{}{
+	//			{
+	//				"text_fields": map[string]interface{}{
+	//					"match_mapping_type": "string",
+	//					"mapping": map[string]interface{}{
+	//						"type":     "text",
+	//						"analyzer": "ik_max_word_analyzer",
+	//					},
+	//				},
+	//			},
+	//		},
+	//	},
+	//}
+	//body, _ := json.Marshal(mapping)
+	err, e := es.CreateIndex(indexName, nil) // 数据库名_表名
 	if err != nil {
 		panic(err)
 	}

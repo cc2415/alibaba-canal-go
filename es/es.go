@@ -43,8 +43,12 @@ func init() {
 }
 
 // 创建索引
-func CreateIndex(indexName string) (error, *esapi.Response) {
-	create, err := Client.Indices.Create(indexName)
+func CreateIndex(indexName string, body []byte) (error, *esapi.Response) {
+	create, err := esapi.IndicesCreateRequest{
+		Index: indexName,
+		Body:  bytes.NewReader(body),
+	}.Do(context.Background(), Client)
+	//create, err := Client.Indices.Create(indexName)
 	if err != nil {
 		return err, nil
 	}
